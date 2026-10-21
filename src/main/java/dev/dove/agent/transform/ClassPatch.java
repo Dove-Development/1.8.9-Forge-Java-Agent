@@ -6,7 +6,10 @@ import org.objectweb.asm.tree.ClassNode;
 import java.util.Set;
 
 /**
- * A bytecode patch applied to one or more classes as they are defined.
+ * A bytecode patch applied to classes as they are defined.
+ *
+ * <p>A patch selects classes by name ({@link #targets()}), by content ({@link #markers()}), or both.
+ * Marker matching is what lets one patch fix a pattern wherever it appears, in Forge and in mods.
  */
 public interface ClassPatch {
 
@@ -14,7 +17,17 @@ public interface ClassPatch {
     String name();
 
     /** Internal names of the classes to patch, e.g. {@code net/minecraft/launchwrapper/Launch}. */
-    Set<String> targets();
+    default Set<String> targets() {
+        return Set.of();
+    }
+
+    /**
+     * Constant-pool strings (class names, member names, string literals) that make a class a
+     * candidate for this patch. Checked against the raw class bytes, so it costs no parsing.
+     */
+    default Set<String> markers() {
+        return Set.of();
+    }
 
     /**
      * Applies the patch.
@@ -25,8 +38,7 @@ public interface ClassPatch {
 
     /**
      * {@link ClassWriter} flags used when this patch changed the class. The default only recomputes
-     * max stack/locals; override with {@link ClassWriter#COMPUTE_FRAMES} if the patch changes control
-     * flow (be aware frame computation may need to load other classes).
+     * max stack/locals, which is enough for patches that keep the stack shape of what they replace.
      */
     default int writerFlags() {
         return ClassWriter.COMPUTE_MAXS;

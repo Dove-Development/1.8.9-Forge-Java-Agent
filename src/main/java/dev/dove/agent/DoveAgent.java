@@ -1,8 +1,16 @@
 package dev.dove.agent;
 
 import dev.dove.agent.module.ModuleOpener;
-import dev.dove.agent.patches.fml.SecurityManagerPatch;
-import dev.dove.agent.patches.launchwrapper.LaunchClassPathPatch;
+import dev.dove.agent.patches.asm.AsmClassReaderPatch;
+import dev.dove.agent.patches.asm.AsmTypePatch;
+import dev.dove.agent.patches.compat.FinalFieldPatch;
+import dev.dove.agent.patches.compat.JavaVersionCheckPatch;
+import dev.dove.agent.patches.compat.SecurityManagerPatch;
+import dev.dove.agent.patches.compat.UrlClassLoaderPatch;
+import dev.dove.agent.patches.fml.ClassPatchManagerPatch;
+import dev.dove.agent.patches.fml.EnumHelperPatch;
+import dev.dove.agent.patches.fml.HolderRefPatch;
+import dev.dove.agent.patches.launchwrapper.LaunchClassLoaderPatch;
 import dev.dove.agent.transform.DoveTransformer;
 import dev.dove.agent.transform.PatchRegistry;
 import dev.dove.agent.util.AgentLog;
@@ -18,6 +26,7 @@ import java.lang.instrument.Instrumentation;
 public final class DoveAgent {
 
     private static volatile Instrumentation instrumentation;
+    private static volatile AgentOptions options = AgentOptions.parse(null);
 
     private DoveAgent() {
     }
@@ -27,8 +36,8 @@ public final class DoveAgent {
     }
 
     public static void agentmain(String args, Instrumentation inst) {
-        // Attaching late is mostly useful for debugging; most patches target classes that are
-        // already loaded by then, so this will not give full mod support.
+        // Attaching late is only useful for debugging: the classes these patches target are
+        // loaded during startup.
         AgentLog.warn("Attached after startup; patches for already-loaded classes will not apply.");
         start(args, inst);
     }
@@ -38,9 +47,12 @@ public final class DoveAgent {
             AgentLog.warn("Agent already started, ignoring second start.");
             return;
         }
+        long startNanos = System.nanoTime();
         instrumentation = inst;
+        options = AgentOptions.parse(args);
+        AgentLog.init(options.logFile(), options.debug());
 
-        AgentLog.info("Dove agent " + version() + " starting on Java " + Runtime.version());
+        AgentLog.info("Dove agent " + version() + " on Java " + Runtime.version() + " (" + System.getProperty("java.vendor") + ")");
         if (Runtime.version().feature() < 25) {
             AgentLog.warn("Dove targets Java 25; running on " + Runtime.version().feature() + " is untested.");
         }
@@ -49,18 +61,34 @@ public final class DoveAgent {
 
         PatchRegistry registry = new PatchRegistry();
         registerPatches(registry);
-        inst.addTransformer(new DoveTransformer(registry), true);
+        inst.addTransformer(new DoveTransformer(registry), false);
 
-        AgentLog.info("Registered " + registry.size() + " patch(es).");
+        AgentLog.info("Registered " + registry.size() + " patches in " + (System.nanoTime() - startNanos) / 1_000_000 + " ms");
     }
 
     private static void registerPatches(PatchRegistry registry) {
-        registry.register(new LaunchClassPathPatch());
+        // LaunchWrapper
+        registry.register(new LaunchClassLoaderPatch());
+        // ASM on the game class path (ASM 5 from Forge, or ASM 6+ if a launcher swapped it in)
+        registry.register(new AsmClassReaderPatch());
+        registry.register(new AsmTypePatch());
+        // Forge
+        registry.register(new ClassPatchManagerPatch());
+        registry.register(new EnumHelperPatch());
+        registry.register(new HolderRefPatch());
+        // Java 8 patterns, wherever they appear (LaunchWrapper, Forge, mods)
+        registry.register(new UrlClassLoaderPatch());
         registry.register(new SecurityManagerPatch());
+        registry.register(new FinalFieldPatch());
+        registry.register(new JavaVersionCheckPatch());
     }
 
     public static Instrumentation instrumentation() {
         return instrumentation;
+    }
+
+    public static AgentOptions options() {
+        return options;
     }
 
     public static String version() {

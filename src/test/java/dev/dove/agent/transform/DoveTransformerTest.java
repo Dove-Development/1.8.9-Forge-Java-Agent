@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class DoveTransformerTest {
 
     private static final String TARGET = "test/Target";
+    private static final ClassLoader LOADER = DoveTransformerTest.class.getClassLoader();
 
     @Test
     void appliesPatchToTargetClass() {
@@ -22,7 +23,7 @@ class DoveTransformerTest {
         registry.register(new MarkerPatch());
         DoveTransformer transformer = new DoveTransformer(registry);
 
-        byte[] patched = transformer.transform(null, TARGET, null, null, emptyClass(TARGET));
+        byte[] patched = transformer.transform(LOADER, TARGET, null, null, emptyClass(TARGET));
 
         assertNotNull(patched);
         ClassNode node = new ClassNode();
@@ -37,7 +38,7 @@ class DoveTransformerTest {
         registry.register(new MarkerPatch());
         DoveTransformer transformer = new DoveTransformer(registry);
 
-        assertNull(transformer.transform(null, "test/Other", null, null, emptyClass("test/Other")));
+        assertNull(transformer.transform(LOADER, "test/Other", null, null, emptyClass("test/Other")));
     }
 
     private static byte[] emptyClass(String name) {

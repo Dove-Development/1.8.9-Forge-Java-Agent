@@ -17,6 +17,9 @@ import java.util.List;
  */
 public final class DoveTransformer implements ClassFileTransformer {
 
+    private static final String SELF_PREFIX = "dev/dove/agent/";
+    private static final ClassLoader PLATFORM = ClassLoader.getPlatformClassLoader();
+
     private final PatchRegistry registry;
 
     public DoveTransformer(PatchRegistry registry) {
@@ -26,10 +29,11 @@ public final class DoveTransformer implements ClassFileTransformer {
     @Override
     public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined,
                             ProtectionDomain protectionDomain, byte[] classfileBuffer) {
-        if (className == null) {
+        // JDK classes and the agent itself never need patching; skipping them keeps startup cheap.
+        if (className == null || loader == null || loader == PLATFORM || className.startsWith(SELF_PREFIX)) {
             return null;
         }
-        List<ClassPatch> patches = registry.patchesFor(className);
+        List<ClassPatch> patches = registry.patchesFor(className, classfileBuffer);
         if (patches.isEmpty()) {
             return null;
         }

@@ -17,20 +17,28 @@ repositories {
 
 dependencies {
     // ASM is shaded and relocated into the agent jar so it never collides with
-    // the (much older) ASM 5 that LaunchWrapper/Forge put on the classpath.
+    // the ASM that LaunchWrapper/Forge/mods put on the classpath.
     implementation("org.ow2.asm:asm:$asmVersion")
     implementation("org.ow2.asm:asm-tree:$asmVersion")
-    implementation("org.ow2.asm:asm-commons:$asmVersion")
-    implementation("org.ow2.asm:asm-util:$asmVersion")
+
+    // Pack200 was removed in Java 14; Forge needs it to unpack its binary patches.
+    implementation("org.apache.commons:commons-compress:1.28.0")
 
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// The hooks write static final fields through the JDK's internal Unsafe. At runtime the
+// agent opens these packages itself (ModuleOpener); compile and test need them spelled out.
+val jdkInternals = listOf(
+    "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+)
+
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release = 25
+    // No options.release: it forbids --add-exports. The JDK 25 toolchain already targets 25.
+    options.compilerArgs.addAll(jdkInternals)
 }
 
 tasks.withType<Jar>().configureEach {
@@ -51,9 +59,13 @@ tasks.jar {
 }
 
 tasks.shadowJar {
-    archiveClassifier = ""
+    // The launcher looks for exactly this name.
+    archiveFileName = "dove-agent.jar"
+    // Relocate everything shaded: Minecraft ships its own (older) commons-compress, -io, -lang3, -codec.
     relocate("org.objectweb.asm", "dev.dove.agent.shadow.asm")
-    exclude("module-info.class", "META-INF/versions/**/module-info.class")
+    relocate("org.apache.commons", "dev.dove.agent.shadow.commons")
+    minimize()
+    exclude("module-info.class", "META-INF/versions/**/module-info.class", "META-INF/maven/**")
 }
 
 tasks.assemble {
@@ -62,4 +74,8 @@ tasks.assemble {
 
 tasks.test {
     useJUnitPlatform()
+    jvmArgs(
+        "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
+        "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+    )
 }
