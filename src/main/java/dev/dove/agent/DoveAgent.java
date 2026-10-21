@@ -11,6 +11,8 @@ import dev.dove.agent.patches.fml.ClassPatchManagerPatch;
 import dev.dove.agent.patches.fml.EnumHelperPatch;
 import dev.dove.agent.patches.fml.HolderRefPatch;
 import dev.dove.agent.patches.launchwrapper.LaunchClassLoaderPatch;
+import dev.dove.agent.patches.startup.ForgeTransformerSkipPatch;
+import dev.dove.agent.patches.startup.ModScanPatch;
 import dev.dove.agent.transform.DoveTransformer;
 import dev.dove.agent.transform.PatchRegistry;
 import dev.dove.agent.util.AgentLog;
@@ -81,6 +83,13 @@ public final class DoveAgent {
         registry.register(new SecurityManagerPatch());
         registry.register(new FinalFieldPatch());
         registry.register(new JavaVersionCheckPatch());
+        // Faster loading: skip work FML does that cannot change the result
+        if (options.fastStartup()) {
+            registry.register(new ForgeTransformerSkipPatch());
+            registry.register(new ModScanPatch());
+        } else {
+            AgentLog.info("Startup shortcuts off (fastStartup=false)");
+        }
     }
 
     public static Instrumentation instrumentation() {

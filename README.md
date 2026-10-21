@@ -38,6 +38,7 @@ Agent options (comma-separated after `=`):
 | `log`   | console only                  | file to also write the agent log to           |
 | `cache` | `<java.io.tmpdir>/dove-agent` | where unpacked Forge binary patches are kept  |
 | `debug` | `false`                       | verbose logging (also `-Ddove.debug=true`)    |
+| `fastStartup` | `true`                  | `false` turns off the startup shortcuts below |
 
 For local launcher testing, point `DOVE_RUNTIME_DIR` at a folder with this `dove-agent.jar` (and
 the launcher's `dove-asm.jar`).
@@ -58,6 +59,18 @@ the launcher's `dove-asm.jar`).
 | `AsmClassReaderPatch` | ASM 5, Mixin's ASM | Refuses class files newer than Java 8 |
 | `AsmTypePatch` | ASM 6+ (if swapped in) | Stricter descriptor parsing breaks Forge's EventSubscriptionTransformer, so mod event handlers don't register |
 | `javax.annotation.*` | Mixin 0.7 | JSR-250 annotations removed in Java 11; Mixin checks transformers for `@Resource` |
+
+## Faster startup
+
+Work FML does while loading that cannot change the result is skipped (`patches/startup`). With
+Dove on Forge 1.8.9 this cuts the time to the title screen by about 1.5-2 seconds, and every class
+the game loads comes out identical to what FML alone produces (checked by dumping and comparing
+all of them with LaunchWrapper's `legacy.debugClassLoadingSave`).
+
+| Patch | Skips |
+|---|---|
+| `ForgeTransformerSkipPatch` | SideTransformer, EventSubscriberTransformer and TerminalTransformer re-writing classes that have no `@SideOnly`, no `@SubscribeEvent`, or no exit/halt call |
+| `ModScanPatch` | Reading method bodies while scanning mod jars for annotations; a backtracking regex run on every class name |
 
 ## Project layout
 

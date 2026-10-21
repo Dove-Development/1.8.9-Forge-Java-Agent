@@ -11,9 +11,11 @@ import java.util.Map;
  *   <li>{@code log} - file to write the agent log to (the launcher passes {@code logs/dove-agent.log})</li>
  *   <li>{@code cache} - directory for cached work such as unpacked Forge binary patches</li>
  *   <li>{@code debug} - {@code true} for verbose logging (same as {@code -Ddove.debug=true})</li>
+ *   <li>{@code fastStartup} - {@code false} to load the game without the startup shortcuts
+ *   ({@code patches/startup}), to rule them out when chasing a problem</li>
  * </ul>
  */
-public record AgentOptions(Path logFile, Path cacheDir, boolean debug) {
+public record AgentOptions(Path logFile, Path cacheDir, boolean debug, boolean fastStartup) {
 
     public static AgentOptions parse(String args) {
         Map<String, String> values = new HashMap<>();
@@ -35,6 +37,7 @@ public record AgentOptions(Path logFile, Path cacheDir, boolean debug) {
                 ? Path.of(values.get("cache"))
                 : Path.of(System.getProperty("java.io.tmpdir"), "dove-agent");
         boolean debug = Boolean.parseBoolean(values.get("debug")) || Boolean.getBoolean("dove.debug");
-        return new AgentOptions(log, cache, debug);
+        boolean fastStartup = !"false".equalsIgnoreCase(values.get("fastStartup"));
+        return new AgentOptions(log, cache, debug, fastStartup);
     }
 }
