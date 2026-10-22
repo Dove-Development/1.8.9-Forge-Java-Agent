@@ -1,0 +1,66 @@
+# Every push to main builds the agent, runs its tests and publishes it as a GitHub release:
+# v1.0.0 first, then the patch number goes up by one each push (v1.0.1, v1.0.2, ...). To start a
+# new minor or major line, push a tag such as v1.1.0 yourself; the next release counts on from it.
+#
+# Release assets:
+#   dove-agent.jar         the agent (-javaagent:dove-agent.jar)
+#   dove-agent.jar.sha256  its SHA-256, in sha256sum format
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# One release at a time, so two quick pushes cannot both take the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tags, to find the last version
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: gradle
+
+      - name: Pick the version
+        id: version
+        run: |
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$latest" ]; then
+            next=1.0.0
+          else
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            next="$major.$minor.$((patch + 1))"
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+          echo "Releasing $next (last: ${latest:-none})"
+
+      - name: Build and test
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.version }} --no-daemon
+
+      - name: Checksum
+        run: |
+          cd build/libs
+          sha256sum dove-agent.jar > dove-agent.jar.sha256
+          cat dove-agent.jar.sha256
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            build/libs/dove-agent.jar build/libs/dove-agent.jar.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "Dove Agent for Forge 1.8.9 v${{ steps.version.outputs.version }}" \
+            --generate-notes
