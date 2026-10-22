@@ -31,7 +31,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
-          cache: gradle
+
+      # Caches the Gradle distribution, downloaded dependencies and Gradle's build cache between
+      # runs (saved from main), so a push only rebuilds and retests what changed.
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Pick the version
         id: version
@@ -47,7 +50,7 @@ jobs:
           echo "Releasing $next (last: ${latest:-none})"
 
       - name: Build and test
-        run: ./gradlew build -Pversion=${{ steps.version.outputs.version }} --no-daemon
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.version }}
 
       - name: Checksum
         run: |
