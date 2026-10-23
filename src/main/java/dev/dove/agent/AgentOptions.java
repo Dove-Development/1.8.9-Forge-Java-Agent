@@ -1,5 +1,7 @@
 package dev.dove.agent;
 
+import dev.dove.agent.hooks.HybridCpu;
+
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,9 +15,12 @@ import java.util.Map;
  *   <li>{@code debug} - {@code true} for verbose logging (same as {@code -Ddove.debug=true})</li>
  *   <li>{@code fastStartup} - {@code false} to load the game without the startup shortcuts
  *   ({@code patches/startup}), to rule them out when chasing a problem</li>
+ *   <li>{@code hybridCpu} - {@code auto} (default): on Windows with performance and efficiency cores,
+ *   Above Normal priority, no efficiency mode and the render thread on the performance cores;
+ *   {@code off}; {@code force}: the same on any CPU, for testing</li>
  * </ul>
  */
-public record AgentOptions(Path logFile, Path cacheDir, boolean debug, boolean fastStartup) {
+public record AgentOptions(Path logFile, Path cacheDir, boolean debug, boolean fastStartup, HybridCpu.Mode hybridCpu) {
 
     public static AgentOptions parse(String args) {
         Map<String, String> values = new HashMap<>();
@@ -38,6 +43,7 @@ public record AgentOptions(Path logFile, Path cacheDir, boolean debug, boolean f
                 : Path.of(System.getProperty("java.io.tmpdir"), "dove-agent");
         boolean debug = Boolean.parseBoolean(values.get("debug")) || Boolean.getBoolean("dove.debug");
         boolean fastStartup = !"false".equalsIgnoreCase(values.get("fastStartup"));
-        return new AgentOptions(log, cache, debug, fastStartup);
+        HybridCpu.Mode hybridCpu = HybridCpu.Mode.parse(values.get("hybridCpu"));
+        return new AgentOptions(log, cache, debug, fastStartup, hybridCpu);
     }
 }

@@ -31,5 +31,6 @@ class AgentOptionsTest {
 
         assertNull(options.logFile());
         assertEquals(Path.of(System.getProperty("java.io.tmpdir"), "dove-agent"), options.cacheDir());
+        assertEquals(dev.dove.agent.hooks.HybridCpu.Mode.AUTO, options.hybridCpu());
     }
 }

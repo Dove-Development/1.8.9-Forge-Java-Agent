@@ -75,6 +75,8 @@ tasks.assemble {
 tasks.test {
     useJUnitPlatform()
     jvmArgs(
+        // As the launcher starts the game: HybridCpu calls into kernel32.
+        "--enable-native-access=ALL-UNNAMED",
         "--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED",
         "--add-opens", "java.base/java.lang=ALL-UNNAMED",
     )

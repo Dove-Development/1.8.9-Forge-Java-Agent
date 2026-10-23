@@ -1,5 +1,6 @@
 package dev.dove.agent;
 
+import dev.dove.agent.hooks.HybridCpu;
 import dev.dove.agent.module.ModuleOpener;
 import dev.dove.agent.patches.asm.AsmClassReaderPatch;
 import dev.dove.agent.patches.asm.AsmTypePatch;
@@ -60,6 +61,8 @@ public final class DoveAgent {
         }
 
         ModuleOpener.openAll(inst);
+        // premain runs on the thread that becomes Minecraft's client (render) thread.
+        HybridCpu.apply(options.hybridCpu());
 
         PatchRegistry registry = new PatchRegistry();
         registerPatches(registry);

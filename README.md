@@ -7,6 +7,23 @@ spot where Java 8 assumptions break on Java 25. It is tested with Forge 11.15.1.
 the same code in 11.15.1.1875), OptiFine HD U L5, and Mixin 0.7 mods (OneConfig). It works with
 either Forge's own ASM 5 or a newer ASM swapped onto the class path.
 
+## Hybrid CPUs
+
+On Windows, on CPUs whose cores are not all alike, the agent (`hooks/HybridCpu`) runs the game at
+Above Normal priority, asks Windows not to run it in efficiency mode (EcoQoS), and keeps the render
+thread on the fast cores (any of them; it is never pinned to one core):
+
+- Intel with performance and efficiency cores (12th generation and later): the performance cores,
+  read from Windows (`GetSystemCpuSetInformation`).
+- AMD Ryzen X3D with one 3D V-Cache CCD (7900X3D, 7950X3D, 9900X3D, 9950X3D): the cores sharing the
+  larger L3 cache, read from Windows (`GetLogicalProcessorInformationEx`). AMD's driver moves only
+  games it recognises onto that CCD, and it often doesn't recognise Minecraft.
+
+It does nothing on CPUs whose cores are all alike (including Ryzens with two equal CCDs), where the
+same settings measured no gain, nor on Linux or macOS. A setting Windows refuses is logged and left
+out. Tested on a CPU without either (detection, and every Windows call with `hybridCpu=force`), and
+with the cache layouts of a 7950X3D and a 7950X; the gain on those CPUs has not been measured yet.
+
 ## Building
 
 Requires nothing but a JDK to run Gradle; the build downloads a JDK 25 toolchain if one isn't installed.
@@ -39,6 +56,7 @@ Agent options (comma-separated after `=`):
 | `cache` | `<java.io.tmpdir>/dove-agent` | where unpacked Forge binary patches are kept  |
 | `debug` | `false`                       | verbose logging (also `-Ddove.debug=true`)    |
 | `fastStartup` | `true`                  | `false` turns off the startup shortcuts below |
+| `hybridCpu` | `auto` | `auto`: only on Windows with performance and efficiency cores (Intel 12th generation and later) or with one 3D V-Cache CCD (Ryzen 7900X3D, 7950X3D, 9900X3D, 9950X3D), the game runs at Above Normal priority, out of efficiency mode (EcoQoS), with the render thread on the fast cores; other CPUs are left alone. `off` turns it off; `force` applies it on any CPU, for testing |
 
 For local launcher testing, point `DOVE_RUNTIME_DIR` at a folder with this `dove-agent.jar` (and
 the launcher's `dove-asm.jar`).
