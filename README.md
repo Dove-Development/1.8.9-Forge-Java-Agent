@@ -71,6 +71,8 @@ the launcher's `dove-asm.jar`).
 | `SecurityManagerPatch` | FML, any mod | `System.setSecurityManager` throws since Java 24 |
 | `ClassPatchManagerPatch` | FML | Pack200 (Forge's binary patch format) removed in Java 14; replaced with Commons Compress and cached on disk |
 | `JavaVersionCheckPatch` | FML, any mod | commons-lang3 3.3.2 can't parse Java 25; Forge's BlamingTransformer NPEs on every Java 7/8 mod class |
+| `FmlSignatureNoticePatch` | FML | Java 25 rejects the 2017 DSA signature on Forge's jar, so FML's sanity check finds no certificates and logged "FML appears to be missing any signature data" as an error; it now says why, at info level (FML uses the answer for nothing else) |
+| `QuietLogs` | Netty | Netty's info line "Your platform does not provide complete low-level API for accessing direct buffers reliably" is hidden; Netty still falls back to heap buffers as before, and its warnings still show |
 | `EnumHelperPatch` | Forge | Enum constants built with removed `sun.reflect` API |
 | `HolderRefPatch` | FML | `@ObjectHolder` fields written with removed `sun.reflect` API and `Field.modifiers` |
 | `FinalFieldPatch` | any mod | The `Field.modifiers` trick for writing static finals |

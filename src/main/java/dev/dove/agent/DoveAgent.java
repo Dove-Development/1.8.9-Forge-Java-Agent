@@ -1,6 +1,7 @@
 package dev.dove.agent;
 
 import dev.dove.agent.hooks.HybridCpu;
+import dev.dove.agent.hooks.QuietLogs;
 import dev.dove.agent.module.ModuleOpener;
 import dev.dove.agent.patches.asm.AsmClassReaderPatch;
 import dev.dove.agent.patches.asm.AsmTypePatch;
@@ -10,6 +11,7 @@ import dev.dove.agent.patches.compat.SecurityManagerPatch;
 import dev.dove.agent.patches.compat.UrlClassLoaderPatch;
 import dev.dove.agent.patches.fml.ClassPatchManagerPatch;
 import dev.dove.agent.patches.fml.EnumHelperPatch;
+import dev.dove.agent.patches.fml.FmlSignatureNoticePatch;
 import dev.dove.agent.patches.fml.HolderRefPatch;
 import dev.dove.agent.patches.launchwrapper.LaunchClassLoaderPatch;
 import dev.dove.agent.patches.startup.ForgeTransformerSkipPatch;
@@ -60,6 +62,7 @@ public final class DoveAgent {
             AgentLog.warn("Dove targets Java 25; running on " + Runtime.version().feature() + " is untested.");
         }
 
+        QuietLogs.install();
         ModuleOpener.openAll(inst);
         // premain runs on the thread that becomes Minecraft's client (render) thread.
         HybridCpu.apply(options.hybridCpu());
@@ -81,6 +84,7 @@ public final class DoveAgent {
         registry.register(new ClassPatchManagerPatch());
         registry.register(new EnumHelperPatch());
         registry.register(new HolderRefPatch());
+        registry.register(new FmlSignatureNoticePatch());
         // Java 8 patterns, wherever they appear (LaunchWrapper, Forge, mods)
         registry.register(new UrlClassLoaderPatch());
         registry.register(new SecurityManagerPatch());
