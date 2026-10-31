@@ -15,7 +15,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Settings for CPUs whose cores are not all alike, on Windows only:
+ * Settings for CPUs whose cores are not all alike, on Windows and Linux (there the render thread
+ * only, see {@link LinuxCpu}):
  *
  * <ul>
  *   <li>Intel CPUs with performance and efficiency cores (12th generation and later): the fast
@@ -86,21 +87,25 @@ public final class HybridCpu {
 
     /** Called from premain, on the thread that becomes the render thread. */
     public static void apply(Mode mode) {
-        if (mode == Mode.OFF || !System.getProperty("os.name", "").startsWith("Windows")) {
+        String os = System.getProperty("os.name", "");
+        boolean windows = os.startsWith("Windows");
+        // Linux: the same plan from its own description of the CPU (LinuxCpu).
+        if (mode == Mode.OFF || !windows && !os.startsWith("Linux")) {
             return;
         }
+        String system = windows ? "Windows" : "Linux";
         List<CpuSet> sets;
         List<Cache> caches;
         try {
-            sets = cpuSets();
-            caches = l3Caches();
+            sets = windows ? cpuSets() : LinuxCpu.cpus(LinuxCpu.SYS);
+            caches = windows ? l3Caches() : LinuxCpu.l3Caches(LinuxCpu.SYS);
         } catch (Throwable t) {
-            AgentLog.warn("Cannot read the CPU's cores; leaving scheduling to Windows: " + t);
+            AgentLog.warn("Cannot read the CPU's cores; leaving scheduling to " + system + ": " + t);
             return;
         }
         Plan plan = plan(sets, caches);
         if (plan == null && mode != Mode.FORCE) {
-            AgentLog.info("CPU cores are all alike (no efficiency cores, no 3D V-Cache CCD); scheduling left to Windows");
+            AgentLog.info("CPU cores are all alike (no efficiency cores, no 3D V-Cache CCD); scheduling left to " + system);
             return;
         }
         if (plan == null) {
@@ -108,18 +113,22 @@ public final class HybridCpu {
         }
         int[] fast = plan.ids();
         AgentLog.info(plan.reason() + ": " + fast.length + " of " + sets.size() + " logical processors are the fast cores");
-        set("process priority Above Normal", HybridCpu::raiseProcessPriority);
-        set("no efficiency mode (EcoQoS) for the game", HybridCpu::leaveEfficiencyMode);
-        set("render thread on the fast cores", () -> preferCores(fast));
+        if (windows) {
+            set(system, "process priority Above Normal", HybridCpu::raiseProcessPriority);
+            set(system, "no efficiency mode (EcoQoS) for the game", HybridCpu::leaveEfficiencyMode);
+            set(system, "render thread on the fast cores", () -> preferCores(fast));
+        } else {
+            set(system, "render thread on the fast cores", () -> LinuxCpu.preferCores(fast));
+        }
     }
 
     /** Applies one setting; a refusal or failure is logged and only costs that setting. */
-    private static void set(String what, Setting setting) {
+    private static void set(String system, String what, Setting setting) {
         try {
             if (setting.apply()) {
-                AgentLog.info("Windows: " + what);
+                AgentLog.info(system + ": " + what);
             } else {
-                AgentLog.warn("Windows refused " + what);
+                AgentLog.warn(system + " refused " + what);
             }
         } catch (Throwable t) {
             AgentLog.warn("Cannot set " + what + ": " + t);
