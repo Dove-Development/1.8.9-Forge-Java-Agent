@@ -68,9 +68,9 @@ jobs:
             --title "Dove Agent for Forge 1.8.9 v${{ steps.version.outputs.version }}" \
             --generate-notes
 
-      # The launcher's downloads come from Cloudflare R2 (downloads.doveclient.com), not GitHub:
-      # this release under agents/1.8.9/v<version>/, then the same files under
-      # agents/1.8.9/latest/, which the mod's CI packages with the mod.
+      # The launcher's downloads come from Cloudflare R2 (downloads.doveclient.com), not GitHub. R2
+      # keeps only the newest agent: this release goes to agents/1.8.9/latest/, which the mod's CI
+      # packages with the mod, and anything else under agents/1.8.9/ is deleted.
       - name: Upload to R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -79,11 +79,8 @@ jobs:
           AWS_REQUEST_CHECKSUM_CALCULATION: when_required
           AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
           R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for prefix in "agents/1.8.9/v$VERSION" "agents/1.8.9/latest"; do
-            for file in dove-agent.jar dove-agent.jar.sha256; do
-              aws s3 cp "build/libs/$file" "s3://dove-releases/$prefix/$file" \r
-                --endpoint-url "$R2_ENDPOINT" --cache-control "public, max-age=60" --no-progress
-            done
+          for file in dove-agent.jar dove-agent.jar.sha256; do
+            aws s3 cp "build/libs/$file" "s3://dove-releases/agents/1.8.9/latest/$file" --endpoint-url "$R2_ENDPOINT" --cache-control "public, max-age=60" --no-progress
           done
+          aws s3 rm "s3://dove-releases/agents/1.8.9/" --recursive --exclude "latest/*" --endpoint-url "$R2_ENDPOINT"
