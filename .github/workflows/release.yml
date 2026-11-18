@@ -67,3 +67,23 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Dove Agent for Forge 1.8.9 v${{ steps.version.outputs.version }}" \
             --generate-notes
+
+      # The launcher's downloads come from Cloudflare R2 (downloads.doveclient.com), not GitHub:
+      # this release under agents/1.8.9/v<version>/, then the same files under
+      # agents/1.8.9/latest/, which the mod's CI packages with the mod.
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for prefix in "agents/1.8.9/v$VERSION" "agents/1.8.9/latest"; do
+            for file in dove-agent.jar dove-agent.jar.sha256; do
+              aws s3 cp "build/libs/$file" "s3://dove-releases/$prefix/$file" \r
+                --endpoint-url "$R2_ENDPOINT" --cache-control "public, max-age=60" --no-progress
+            done
+          done
